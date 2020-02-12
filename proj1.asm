@@ -122,8 +122,8 @@ start_coding_here:
     sll $t9, $t9, 4			# shift left by 4 bits so that the values get added properly
     add $t9, $t9, $t1			
     
-    addi $t3, $t3, 1 	# move to next character
-    addi $t5, $t5, 1	# increment counter
+    addi $t3, $t3, 1 		# move to next character
+    addi $t5, $t5, 1		# increment counter
     blt $t5, $t6, loopThroughSecArg	# loop back if the counter < number of iterations
     
     move $t1, $t9
@@ -190,6 +190,88 @@ start_coding_here:
     la $t2, num_args
     lw $t2, ($t2) 
     bne $t1, $t2, invalid_args
+    
+    lw $t1, addr_arg1 			# converting the first arg to a two digit decimal
+    lbu $t2, 0($t1)
+    lbu $t3, 1($t1)
+    addi $t2, $t2, -0x30
+    addi $t3, $t3, -0x30
+    lbu $t5, 2($t1)			# checks if the decimal is out of range
+    bnez $t5, invalid_args
+    li $t4, 10
+    mul $t2, $t2, $t4
+    add $t1, $t2, $t3
+    li $t2, 63				# checks if the decimal is out of range
+    bgt $t1, $t2, invalid_args
+    
+    
+    lw $t9, addr_arg2 			# converting the second arg to a two digit decimal
+    lbu $t2, 0($t9)
+    lbu $t3, 1($t9)
+    addi $t2, $t2, -0x30
+    addi $t3, $t3, -0x30
+    lbu $t5, 2($t9)			# check if there is a third digit
+    bnez $t5, invalid_args
+    li $t4, 10
+    mul $t2, $t2, $t4
+    add $t9, $t2, $t3
+    li $t2, 31				# checks if the decimal is out of range
+    bgt $t9, $t2, invalid_args
+    
+    lw $t8, addr_arg3 			# converting the third arg to a two digit decimal
+    lbu $t2, 0($t8)
+    lbu $t3, 1($t8)
+    addi $t2, $t2, -0x30
+    addi $t3, $t3, -0x30
+    lbu $t5, 2($t8)			# check if there is a third digit
+    bnez $t5, invalid_args
+    li $t4, 10
+    mul $t2, $t2, $t4
+    add $t8, $t2, $t3
+    li $t2, 31				# checks if the decimal is out of range
+    bgt $t8, $t2, invalid_args
+    
+    lw $t7, addr_arg4			# check if the first char is a negative sign
+    lbu $t2, 0($t7) 
+    move $t0, $t2
+    li $t3, '-'
+    li $t6, 5		# counter
+    li $t5, 10
+    li $t4, 10000
+    bne $t2, $t3, notNegative
+    addi $t7, $t7, 1
+    li $s3, 0
+    notNegative:
+    lbu $t2, 0($t7)		# loading the digit
+    addi $t2, $t2, -0x30
+    mul $t2, $t2, $t4		# applying weight of place
+    divu $t4, $t5		# calculating place value
+    mflo $t4
+    addi $t7, $t7, 1
+    addi $t6, $t6, -1		# decrements the counter
+    add $s3, $s3, $t2
+    bgtz $t6, notNegative
+    li $t2, 32767
+    bgt $s3, $t2, invalid_args
+    bne $t0, $t3, dontNegate
+    li $t2, 32768
+    bgt $s3, $t2, invalid_args
+    subu $s3, $zero, $s3
+    
+    dontNegate:
+    sll $t1, $t1, 26		# extract the bits for each part
+    sll $t9, $t9, 21
+    sll $t8, $t8, 16
+    sll $s3, $s3, 16
+    srl $s3, $s3, 16
+    
+    li $s0, 0			# concatenate the bits together
+    or $s0, $t1, $t9
+    or $s0, $s0, $t8
+    or $s0, $s0, $s3
+    move $a0, $s0
+    li $v0, 34
+    syscall
     
     j exit
     
