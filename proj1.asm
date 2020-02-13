@@ -183,6 +183,66 @@ start_coding_here:
     lw $t2, ($t2) 
     bne $t1, $t2, invalid_args
     
+    lw $t0, addr_arg1			# checks if the first arg is valid
+    lbu $t1, 0($t0)
+    lbu $t2, 1($t0)
+    bnez $t2, invalid_args
+    li $t2, 0x31
+    beq $t1, $t2, firstArgValid
+    li $t2, 0x32
+    beq $t1, $t2, firstArgValid
+    li $t2, 0x53
+    bne $t1, $t2, invalid_args
+    
+    firstArgValid:
+    lw $t0, addr_arg2			# checks if the second arg is valid
+    lbu $t2, 0($t0)
+    lbu $t3, 1($t0)
+    bnez $t3, invalid_args
+    li $t3, 0x31
+    beq $t2, $t3, secondArgValid
+    li $t3, 0x32
+    beq $t2, $t3, secondArgValid
+    li $t3, 0x53
+    bne $t2, $t3, invalid_args
+   
+    secondArgValid:
+    lw $t0, addr_arg3  
+    li $t5, 0  		# counter
+    li $t6, 8		# number of iterations
+    addi $t0, $t0, 2    # address of char after 0x 
+    loopThroughHexa:
+    lbu $t7, 0($t0)	# load character 
+    li $t8, 0x30
+    li $t4, 0x39 
+    blt $t7, $t8, invalid_args		# checks if character is less than ascii value for 0
+    bgt $t7, $t4, convertChar	# checks if character is greater than ascii value for 9
+    addi $t7, $t7, -0x30 		# subtracts 0x30 to get the decimal value
+    j createBinary
+    
+    convertChar:
+    li $t8, 0x41
+    li $t4, 0x46 
+    blt $t7, $t8, invalid_args		# checks if character is less than ascii value for A
+    bgt $t7, $t4, invalid_args		# checks if character is greater than ascii value for F
+    addi $t7, $t7, -0x37 		# subtracts 0x31 to get the decimal value
+    
+    createBinary:
+    sll $s0, $s0, 4			# shift left by 4 bits so that the values get added properly
+    add $s0, $s0, $t7			
+    
+    addi $t0, $t0, 1 		# move to next character
+    addi $t5, $t5, 1		# increment counter
+    blt $t5, $t6, loopThroughHexa	# loop back if the counter < number of iterations
+    
+    srl $t9, $s0, 31
+    beqz $t9, printBinary
+    
+    printBinary:
+    move $a0, $s0
+    li $v0, 35
+    syscall
+    
     j exit
     
     E_op:				# completes E operation
@@ -203,7 +263,6 @@ start_coding_here:
     add $t1, $t2, $t3
     li $t2, 63				# checks if the decimal is out of range
     bgt $t1, $t2, invalid_args
-    
     
     lw $t9, addr_arg2 			# converting the second arg to a two digit decimal
     lbu $t2, 0($t9)
@@ -272,10 +331,7 @@ start_coding_here:
     move $a0, $s0
     li $v0, 34
     syscall
-    
     j exit
-    
-    
     
     invalid_op:				# prints if the operation is invalid
     la $a0, invalid_operation_error
