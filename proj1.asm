@@ -183,7 +183,7 @@ start_coding_here:
     lw $t2, ($t2) 
     bne $t1, $t2, invalid_args
     
-    lw $t0, addr_arg1			# checks if the first arg is valid
+    lw $t0, addr_arg1			# checks if the second arg is valid
     lbu $t1, 0($t0)
     lbu $t2, 1($t0)
     bnez $t2, invalid_args
@@ -195,7 +195,7 @@ start_coding_here:
     bne $t1, $t2, invalid_args
     
     firstArgValid:
-    lw $t0, addr_arg2			# checks if the second arg is valid
+    lw $t0, addr_arg2			# checks if the third arg is valid
     lbu $t2, 0($t0)
     lbu $t3, 1($t0)
     bnez $t3, invalid_args
@@ -235,8 +235,46 @@ start_coding_here:
     addi $t5, $t5, 1		# increment counter
     blt $t5, $t6, loopThroughHexa	# loop back if the counter < number of iterations
     
-    srl $t9, $s0, 31
+    srl $t9, $s0, 31			# if the first bit is 0 no conversion is needed so print
     beqz $t9, printBinary
+    beq $t1, $t2, printBinary		# check if the source and destination scheme are the same
+    
+    li $t0, 0x31			# check if it's in ones complement
+    bne $t1, $t0, notInOnes
+    addi $t0, $t0, 1
+    beq $t2, $t0, convertToTwos 	# check if it needs to be converted to twos
+    xori $s0, $s0, 0xFFFFFFFF		# complement the its to change it to binary
+    ori $s0, $s0, 0x80000000		# add sign bit
+    j printBinary
+
+
+    notInOnes:
+    li $t0, 0x32			# check if it's in two's complement
+    bne $t1, $t0, notInTwos
+    li $t0, 0x31			
+    beq $t2, $t0, fromTwosToOnes	# check if it must be converted to ones 
+    addi $s0, $s0, -1			
+    xori $s0, $s0, 0xFFFFFFFF
+    ori $s0, $s0, 0x80000000
+    j printBinary
+    
+    notInTwos:				# if it's not in ones or twos it must be sign, so convert it to ones first
+    andi $s0, $s0, 0x7FFFFFFF
+    beqz $s0, printBinary
+    j convertToOnes 
+    
+    fromTwosToOnes:
+    addi $s0, $s0, -1	
+    j printBinary
+    
+    convertToOnes:
+    xori $s0, $s0, 0xFFFFFFFF		# complement the its to change it to binary
+    li $t0, 0x32
+    bne $t2, $t0, printBinary
+    
+    convertToTwos:
+    addi $s0, $s0, 1
+    j printBinary
     
     printBinary:
     move $a0, $s0
