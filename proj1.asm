@@ -244,6 +244,7 @@ start_coding_here:
     addi $t0, $t0, 1
     beq $t2, $t0, convertToTwos 	# check if it needs to be converted to twos
     xori $s0, $s0, 0xFFFFFFFF		# complement the its to change it to binary
+    beqz $s0, printBinary
     ori $s0, $s0, 0x80000000		# add sign bit
     j printBinary
 
