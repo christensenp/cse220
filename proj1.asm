@@ -83,6 +83,138 @@ start_coding_here:
     lw $t2, ($t2) 
     bne $t1, $t2, invalid_args
     
+    lw $t0, addr_arg1
+    li $t1, 0			# counter for cards
+    li $t2, 13			# max iterations
+    li $s0, 0			# score
+    li $s1, 0			# count of Hearts
+    li $s2, 0 			# count of Diamonds
+    li $s3, 0 			# count of Spades
+    li $s4, 0 			# count of Clubs
+    li $t5, 0x48		# Heart
+    li $t6, 0x44		# Diamonds
+    li $t7, 0x53		# Spades
+    li $t8, 0x43		# Club 
+    li $s5, 0x41		# Ace
+    li $s6, 0x4B		# King
+    li $s7, 0x51		# Queen
+    li $t9, 0x4A		# Jack			
+    loopThroughHand:
+    lbu $t3, ($t0)
+    lbu $t4, 1($t0)
+    beq $t3, $s5, isAce
+    beq $t3, $s6, isKing
+    beq $t3, $s7, isQueen
+    beq $t3, $t9, isJack
+    j checkSuit
+    
+    isAce: 
+    addi $s0, $s0, 4
+    j checkSuit
+    isKing:
+    addi $s0, $s0, 3
+    j checkSuit
+    isQueen:
+    addi $s0, $s0, 2
+    j checkSuit
+    isJack:
+    addi $s0, $s0, 1
+    j checkSuit
+    
+    checkSuit: 
+    beq $t4, $t5, incrementHearts
+    beq $t4, $t6, incrementDiamonds 
+    beq $t4, $t7, incrementSpades
+    beq $t4, $t8, incrementClubs
+    
+    incrementHearts:
+    addi $s1, $s1, 1
+    j checkLoop
+    incrementDiamonds:
+    addi $s2, $s2, 1
+    j checkLoop
+    incrementSpades:
+    addi $s3, $s3, 1
+    j checkLoop
+    incrementClubs:
+    addi $s4, $s4, 1
+    
+    checkLoop:
+    addi $t0, $t0, 2
+    addi $t1, $t1, 1
+    blt $t1, $t2, loopThroughHand
+    
+    li $t0, 2   
+    beq $s1, $t0, addOne.Hearts
+    li $t0, 1
+    beq $s1, $t0, addTwo.Hearts
+    beqz $s1, addThree.Hearts
+    j checkDiamonds
+    
+    addOne.Hearts:
+    addi $s0, $s0, 1
+    j checkDiamonds
+    addTwo.Hearts:
+    addi $s0, $s0, 2
+    j checkDiamonds
+    addThree.Hearts:
+    addi $s0, $s0, 3
+    
+    checkDiamonds:
+    li $t0, 2
+    beq $s2, $t0, addOne.Diamonds
+    li $t0, 1
+    beq $s2, $t0, addTwo.Diamonds
+    beqz $s2, addThree.Diamonds
+    j checkSpades
+    
+    addOne.Diamonds:
+    addi $s0, $s0, 1
+    j checkSpades
+    addTwo.Diamonds:
+    addi $s0, $s0, 2
+    j checkSpades
+    addThree.Diamonds:
+    addi $s0, $s0, 3
+
+    checkSpades:
+    li $t0, 2
+    beq $s3, $t0, addOne.Spades
+    li $t0, 1
+    beq $s3, $t0, addTwo.Spades
+    beqz $s3, addThree.Spades
+    j checkClubs
+    
+    addOne.Spades:
+    addi $s0, $s0, 1
+    j checkClubs
+    addTwo.Spades:
+    addi $s0, $s0, 2
+    j checkClubs
+    addThree.Spades:
+    addi $s0, $s0, 3    
+    
+    checkClubs:
+    li $t0, 2
+    beq $s4, $t0, addOne.Clubs
+    li $t0, 1
+    beq $s4, $t0, addTwo.Clubs
+    beqz $s4, addThree.Clubs
+    j printScore
+    
+    addOne.Clubs:
+    addi $s0, $s0, 1
+    j printScore
+    addTwo.Clubs:
+    addi $s0, $s0, 2
+    j printScore
+    addThree.Clubs:
+    addi $s0, $s0, 3    
+    
+    printScore:    
+    move $a0, $s0
+    li $v0, 1
+    syscall
     j exit
     
     D_op: 				# Completes D operation
@@ -264,7 +396,7 @@ start_coding_here:
     beqz $s0, printBinary
     j convertToOnes 
     
-    fromTwosToOnes:
+    fromTwosToOnes:			# convert from twos complement to ones complement
     addi $s0, $s0, -1	
     j printBinary
     
@@ -273,11 +405,11 @@ start_coding_here:
     li $t0, 0x32
     bne $t2, $t0, printBinary
     
-    convertToTwos:
+    convertToTwos:			# convert to twos from ones
     addi $s0, $s0, 1
     j printBinary
     
-    printBinary:
+    printBinary:			# print the value in binary
     move $a0, $s0
     li $v0, 35
     syscall
