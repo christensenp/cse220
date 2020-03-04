@@ -4,7 +4,7 @@ ch: .byte 'X'
 v0: .asciiz "$v0: "
 msg: .asciiz "str: "
 .align 2
-index: .word -4
+index: .word 3
 
 .text
 .globl main
