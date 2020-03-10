@@ -34,7 +34,7 @@ checkIfGhost:
 	jr $ra
 	
 shiftString:
-	### ao is the direction, 0 is left 1 is right | a1 is the string | a2 is the number of iterations
+	### a0 is the direction, 0 is left 1 is right | a1 is the string | a2 is the number of iterations
 	li $t0, 0 				# counter
 	beqz $a0, shiftStringLeftLoop
 	shiftStringRightLoop:
@@ -54,6 +54,20 @@ shiftString:
 		j shiftStringLeftLoop
 	
 	shiftStringDone:
+	jr $ra
+	
+clearArray:
+	### a0 is the base address of the array | a1 is the size of the array
+	li $t2, 0		# counter
+	move $t0, $a0
+	move $t1, $a1
+	setZeroLoop:
+		bge $t2, $t1, doneClearArray
+		sb $0, ($t0)
+		addi $t2, $t2, 1
+		addi $t0, $t0, 1
+		j setZeroLoop
+	doneClearArray:
 	jr $ra
 strlen:
 	li $t0, 0 		# counter for string length
@@ -244,23 +258,23 @@ replace_all_pairs:
 	li $s5, 0				# counter for replacements
 	li $s6, -1
 	replaceAllPairsLoop:
-		move $a0, $s0
+		move $a0, $s0			# initialize args of replace_first_pair
 		move $a1, $s1
 		move $a2, $s2
 		move $a3, $s3
-		addi $sp, $sp, -4
+		addi $sp, $sp, -4		
 		sw $s4, 0($sp)
 	
-		jal replace_first_pair
-		addi $sp, $sp, 4
-		beq $v0, $s6, foundAllPairs
-		move $s4, $v0	
-		addi $s4, $s4, 1
+		jal replace_first_pair		# call replace first pair 
+		addi $sp, $sp, 4		
+		beq $v0, $s6, foundAllPairs	# if it returns -1 then all pairs have been found
+		move $s4, $v0			# put the return index into s4 so it can be used as arg for next call
+		addi $s4, $s4, 1		# increment counters
 		addi $s5, $s5, 1
 		j replaceAllPairsLoop
 	
 	foundAllPairs:
-		move $v0, $s5
+		move $v0, $s5			
 
 	lw $ra, 0($sp)
 	lw $s0, 4($sp)
@@ -274,7 +288,112 @@ replace_all_pairs:
 	jr $ra
 
 bytepair_encode:
-    jr $ra
+	addi $sp, $sp, -36
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	sw $s4, 20($sp)
+	sw $s5, 24($sp)
+	sw $s6, 28($sp)
+	sw $s7, 32($sp)
+	
+	move $s0, $a0
+	move $s1, $a1
+	move $s2, $a2
+	
+	move $a0, $a1				# clear arrays
+	li $a1, 676
+	jal clearArray
+	move $a0, $a2
+	li $a1, 52
+	jal clearArray
+	
+	li $s7, 25
+	li $s6, 0
+	
+	bytePairEncodeLoop:
+	
+	li $s3, 0				# max frequency
+	li $s4, -1				# pair with max frequency
+	move $a0, $s0
+	jal strlen
+	move $s5, $v0				# size of string / max iters
+	addi $s5, $s5, -1
+	li $t9, 0				# counter
+	
+	setFrequenciesLoop:
+		bge $t9, $s5, doneSetFrequency
+		li $t1, 26
+		add $t3, $s0, $t9		# current indexing address
+		lbu $t4, ($t3)			# load the char at index
+		addi $t4, $t4, -97		# normalize characters to a = 0
+		bltz $t4, finishSetFrequenciesLoop
+		mul $t5, $t4, $t1		# get index for frequency array
+		lbu $t4, 1($t3)			# load the char at the next index
+		addi $t4, $t4, -97
+		bltz $t4, finishSetFrequenciesLoop
+		add $t5, $t5, $t4		# $t5 is the index for frequency array
+		add $t6, $t5, $s1		# $t6 is the place in memory for frequency index
+		
+		
+		lb $t0, ($t6)			# load the frequency for this pair
+		addi $t0, $t0, 1		# increment frequency
+		sb $t0, ($t6)
+		beq $t0, $s3, checkAlphabetical
+		blt $t0, $s3, finishSetFrequenciesLoop
+		move $s4, $t5			# if the frequency is greater than max set new max pair
+		move $s3, $t0			# also set new max frequency
+		finishSetFrequenciesLoop:
+		addi $t9, $t9, 1		# increment counter
+		j setFrequenciesLoop
+	
+	
+	checkAlphabetical:
+		bgt $t5, $s4, finishSetFrequenciesLoop		# check if the pair is alphabetically greater
+		move $s4, $t5
+		j finishSetFrequenciesLoop
+		
+	
+	doneSetFrequency:	
+		beqz $s3, finishBytePairEncodeLoop	
+		li $t0, 26
+		div $s4, $t0			# divide the index for max frequency by 26 to get the first char
+		mflo $t1			# $t1 has the first char
+		mfhi $t2			# $t2 has the second char
+		addi $t1, $t1, 97	
+		addi $t2, $t2, 97
+		move $a1, $t1
+		move $a2, $t2
+		move $a0, $s0
+		move $a3, $s7
+		addi $a3, $a3, 65
+		li $t3, 2
+		mul $t0, $s7, $t3		# index in replacement array
+		add $t4, $t0, $s2		# address for index in replacement array
+		sb $t1, ($t4)			# store the first char
+		sb $t2, 1($t4)			# store the second char
+		
+		jal replace_all_pairs
+		add $s6, $s6, $v0
+		addi $s7, $s7, -1		# decrement capital letter
+		j bytePairEncodeLoop
+	
+	finishBytePairEncodeLoop:
+	move $v0, $s6
+
+	lw $ra, 0($sp)
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)	
+	lw $s3, 16($sp)
+	lw $s4, 20($sp)
+	lw $s5, 24($sp)
+	lw $s6, 28($sp)
+	lw $s7, 32($sp)
+	addi $sp, $sp, 36	
+    	jr $ra
 
 replace_first_char:
     jr $ra
