@@ -503,4 +503,49 @@ replace_all_chars:
 
 
 bytepair_decode:
-    jr $ra
+    	addi $sp, $sp, -32
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	sw $s4, 20($sp)
+	sw $s5, 24($sp)
+	sw $s6, 28($sp)
+	
+	move $s0, $a0				# preserve args
+	move $s1, $a1
+	
+	li $s2, 50			# counter
+	li $s3, 'Z'
+	li $s4, 0			# counter for output
+	bytePairDecodeLoop:
+		add $t0, $s1, $s2
+		lbu $t1, ($t0)
+		beqz $t1, finishBytePairDecode
+		lbu $t2, 1($t0)
+		move $a0, $s0
+		move $a1, $s3
+		move $a2, $t1
+		move $a3, $t2
+		jal replace_all_chars
+		add $s4, $s4, $v0
+	
+		addi $s2, $s2, -2
+		addi $s3, $s3, -1
+		bltz $s2, finishBytePairDecode
+		j bytePairDecodeLoop
+	
+	finishBytePairDecode:
+	move $v0, $s4
+	
+	lw $ra, 0($sp)
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)	
+	lw $s3, 16($sp)
+	lw $s4, 20($sp)
+	lw $s5, 24($sp)
+	lw $s6, 28($sp)
+	addi $sp, $sp, 32	
+	jr $ra
