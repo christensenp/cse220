@@ -396,10 +396,111 @@ bytepair_encode:
     	jr $ra
 
 replace_first_char:
-    jr $ra
+   	addi $sp, $sp, -32
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	sw $s4, 20($sp)
+	sw $s5, 24($sp)
+	sw $s6, 28($sp)
+	
+	move $s0, $a0				# preserve args
+	move $s1, $a1
+	move $s2, $a2
+	move $s3, $a3
+	lw $t0, 32($sp)				# retrieve fifth arg from stack
+	move $s4, $t0				# counter
+	
+	jal strlen
+	move $s5, $v0				# max iters
+	move $t0, $s0				# base address
+	add $s6, $t0, $s4
+	replaceFirstCharLoop:
+		lbu $t1, ($s6)	
+		beq $t1, $s1, replaceChar			# check if the character matches first of pair
+		addi $s4, $s4, 1				# increment counter and address
+		addi $s6, $s6, 1	
+		blt $s4, $s5, replaceFirstCharLoop		# check terminating condition
+		
+	li $v0, -1	
+	j finishReplaceFirstChar
+	
+	replaceChar:
+		li $a0, 1
+		sub $t2, $s5, $s4
+		addi $t2, $t2, 1
+		move $a2, $t2
+		move $a1, $s0
+		add $a1, $a1, $s5
+		jal shiftString
+		sb $s2, ($s6)
+		sb $s3, 1($s6)
+		move $v0, $s4
+
+	finishReplaceFirstChar:
+	lw $ra, 0($sp)
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)	
+	lw $s3, 16($sp)
+	lw $s4, 20($sp)
+	lw $s5, 24($sp)
+	lw $s6, 28($sp)
+	addi $sp, $sp, 32	
+	jr $ra
+
 
 replace_all_chars:
-    jr $ra
+   	addi $sp, $sp, -32
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	sw $s4, 20($sp)
+	sw $s5, 24($sp)
+	sw $s6, 28($sp)
+	
+	move $s0, $a0				# preserve args
+	move $s1, $a1
+	move $s2, $a2
+	move $s3, $a3
+
+	li $s4, 0				# initial value for starting index
+	li $s5, 0				# counter for replacements
+	li $s6, -1
+	replaceAllCharsLoop:
+		move $a0, $s0			# initialize args of replace_first_char
+		move $a1, $s1
+		move $a2, $s2
+		move $a3, $s3
+		addi $sp, $sp, -4		
+		sw $s4, 0($sp)
+	
+		jal replace_first_char		# call replace first pair 
+		addi $sp, $sp, 4		
+		beq $v0, $s6, foundAllChars	# if it returns -1 then all pairs have been found
+		move $s4, $v0			# put the return index into s4 so it can be used as arg for next call
+		addi $s4, $s4, 1		# increment counters
+		addi $s5, $s5, 1
+		j replaceAllCharsLoop
+	
+	foundAllChars:
+		move $v0, $s5			
+
+	lw $ra, 0($sp)
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)	
+	lw $s3, 16($sp)
+	lw $s4, 20($sp)
+	lw $s5, 24($sp)
+	lw $s6, 28($sp)
+	addi $sp, $sp, 32	
+	jr $ra
+
 
 bytepair_decode:
     jr $ra
