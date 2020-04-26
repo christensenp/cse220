@@ -417,14 +417,12 @@ build_heap:
 
 # Part IX
 increment_time:
-	addi $sp, $sp, -28			# preserve registers
+	addi $sp, $sp, -20			# preserve registers
 	sw $ra, 0($sp)
 	sw $s0, 4($sp)
 	sw $s1, 8($sp)
 	sw $s2, 12($sp)
 	sw $s3, 16($sp)
-	sw $s4, 20($sp)
-	sw $s5, 24($sp)
 
 	move $s0, $a0
 	move $s1, $a1
@@ -469,14 +467,49 @@ increment_time:
 	lw $s1, 8($sp)
 	lw $s2, 12($sp)
 	lw $s3, 16($sp)
-	lw $s4, 20($sp)
-	lw $s5, 24($sp)
-	addi $sp, $sp, 28
+	addi $sp, $sp, 20
 	jr $ra
 
 # Part X
 admit_customers:
-jr $ra
+	addi $sp, $sp, -20			# preserve registers
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+
+	move $s0, $a0
+	move $s1, $a1
+	move $s2, $a2
+	
+	blez $s1, invalidInput_admitCust
+	
+	li $s3, 0				# customer counter
+	lh $s4, ($s0)				# size of cust array
+	beqz $s4, invalidInput_admitCust
+	dequeueLoop:
+		move $a0, $s0
+		move $a1, $s2
+		jal dequeue
+		addi $s3, $s3, 1
+		addi $s2, $s2, 8
+		bge $s3, $s1, breakDequeueLoop
+		bge $s3, $s4, breakDequeueLoop
+		j dequeueLoop
+	breakDequeueLoop:
+	move $v0, $s3
+	j endAdmitCustomers
+	invalidInput_admitCust:
+		li $v0, -1
+	endAdmitCustomers:
+	lw $ra, 0($sp)				# restore registers
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)
+	lw $s3, 16($sp)
+	addi $sp, $sp, 20
+	jr $ra
 
 # Part XI
 seat_customers:
