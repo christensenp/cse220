@@ -513,7 +513,88 @@ admit_customers:
 
 # Part XI
 seat_customers:
-jr $ra
+	addi $sp, $sp, -36		# preserve registers
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	sw $s4, 20($sp)
+	sw $s5, 24($sp)
+	sw $s6, 28($sp)
+	sw $s7, 32($sp)
+
+	move $s0, $a0				# customer array
+	move $s1, $a1				# num admitted
+	move $s2, $a2				# budget
+	
+	blez $s1, invalidInput_seatCust
+	blez $s2, invalidInput_seatCust
+	
+	li $t0, 1				# counter
+	li $t1, 2
+	calcCombinations:
+		li $t2, 2
+		mul $t1, $t1, $t2 
+		addi $t0, $t0, 1
+		blt $t0, $s1, calcCombinations
+	
+	move $s3, $t1				# total combinations
+	li $s4, 0				# bit string
+	li $s5, 0				# highest fame
+	li $t9, -1				# current best bit string
+	checkBitStringLoop:
+		li $s6, 0			# current fame total
+		li $s7, 0			# sum of wait time
+		li $t0, 31			# shiftcounter
+		sub $t1, $t0, $s1		# lower limit for shift counter
+		checkCustomers:
+			sllv $t2, $s4, $t0
+			srl $t2, $t2, 31
+			beqz $t2, custNotSeated
+			
+			li $t2, 31
+			sub $t2, $t2, $t0
+			li $t3, 8
+			mul $t2, $t2, $t3
+			add $t2, $t2, $s0
+			lh $t3, 4($t2)		# fame
+			lh $t4, 6($t2)		# wait time
+			add $s6, $s6, $t3
+			add $s7, $s7, $t4
+			bgt $s7, $s2, incrementBitString
+			
+			custNotSeated:
+			addi $t0, $t0, -1
+			bgt $t0, $t1, checkCustomers
+		
+		ble $s6, $s5, incrementBitString
+		move $s5, $s6
+		move $t9, $s4
+		
+		incrementBitString:
+		addi $s4, $s4, 1
+		blt $s4, $s3, checkBitStringLoop
+		
+	move $v0, $t9	
+	move $v1, $s5
+	j endSeatCustomers
+	invalidInput_seatCust:
+		li $v0, -1
+		li $v1, -1
+
+	endSeatCustomers:
+	lw $ra, 0($sp)				# restore registers
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)
+	lw $s3, 16($sp)
+	lw $s4, 20($sp)
+	lw $s5, 24($sp)
+	lw $s6, 28($sp)
+	lw $s7, 32($sp)
+	addi $sp, $sp, 36
+	jr $ra
 
 #################### DO NOT CREATE A .data SECTION ####################
 #################### DO NOT CREATE A .data SECTION ####################
