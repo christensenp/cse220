@@ -210,19 +210,269 @@ enqueue:
 
 # Part VI
 heapify_down:
-jr $ra
+	addi $sp, $sp, -36		# preserve registers
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	sw $s4, 20($sp)
+	sw $s5, 24($sp)
+	sw $s6, 28($sp)
+	sw $s7, 32($sp)
+	
+	move $s0, $a0
+	move $s1, $a1
+	
+	bltz $s1, invalidIndex
+	
+	lh $s6, ($s0)			# queue size
+	bge $s1, $s6, invalidIndex
+	li $s7, 0			# swap counter
+	maxHeapifyLoop:
+		li $t0, 3
+		mul $t0, $t0, $s1
+		addi $s2, $t0, 1		# left
+		addi $s3, $t0, 2		# middle
+		addi $s4, $t0, 3		# right
+		move $s5, $s1			# largest
+		
+		bge $s2, $s6, checkMid
+		li $t0, 8
+		mul $t1, $t0, $s2
+		addi $t1, $t1, 4
+		add $t1, $t1, $s0
+		mul $t2, $t0, $s5
+		addi $t2, $t2, 4	
+		add $t2, $t2, $s0	
+
+		move $a0, $t1
+		move $a1, $t2
+		jal compare_to
+		blez $v0, checkMid
+		move $s5, $s2
+		
+		checkMid:
+		bge $s3, $s6, checkRight
+		li $t0, 8
+		mul $t1, $t0, $s3
+		addi $t1, $t1, 4
+		add $t1, $t1, $s0
+		mul $t2, $t0, $s5
+		addi $t2, $t2, 4
+		add $t2, $t2, $s0		
+
+		move $a0, $t1
+		move $a1, $t2
+		jal compare_to
+		blez $v0, checkRight
+		move $s5, $s3
+		
+		checkRight:
+		bge $s4, $s6, checkLargest
+		li $t0, 8
+		mul $t1, $t0, $s4
+		addi $t1, $t1, 4
+		add $t1, $t1, $s0
+		mul $t2, $t0, $s5
+		addi $t2, $t2, 4	
+		add $t2, $t2, $s0
+
+		move $a0, $t1
+		move $a1, $t2
+		jal compare_to
+		blez $v0, checkLargest
+		move $s5, $s4
+		
+		checkLargest:
+		beq $s5, $s1, breakHeapifyLoop
+		
+		li $t0, 8
+		mul $s2, $t0, $s5
+		addi $s2, $s2, 4
+		add $s2, $s2, $s0
+		mul $s3, $t0, $s1
+		addi $s3, $s3, 4
+		add $s3, $s3, $s0
+		
+		addi $sp, $sp, -8
+		move $a0, $s2
+		move $a1, $sp
+		li $a2, 8
+		jal memcpy
+		
+		move $a0, $s3
+		move $a1, $s2
+		li $a2, 8
+		jal memcpy
+		
+		move $a0, $sp
+		move $a1, $s3
+		li $a2, 8 
+		jal memcpy
+		addi $sp, $sp, 8
+		move $s1, $s5
+		addi $s7, $s7, 1
+		blt $s1, $s6, maxHeapifyLoop	
+
+	invalidIndex:
+		li $v0, -1
+		j endHeapifyDown
+	breakHeapifyLoop:
+		move $v0, $s7
+	endHeapifyDown:
+	lw $ra, 0($sp)				# restore registers
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)
+	lw $s3, 16($sp)
+	lw $s4, 20($sp)
+	lw $s5, 24($sp)
+	lw $s6, 28($sp)
+	lw $s7, 32($sp)
+	addi $sp, $sp, 36
+	jr $ra
 
 # Part VII
 dequeue:
-jr $ra
+	addi $sp, $sp, -16			# preserve registers
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+
+	move $s0, $a0
+	move $s1, $a1
+	
+	addi $a0, $s0, 4
+	move $a1, $s1
+	li $a2, 8
+	jal memcpy
+	
+	lh $s2, ($s0)
+	beqz $s2, queueEmpty_dequeue
+	addi $s2, $s2, -1
+	sh $s2, ($s0)
+	li $t1, 8
+	mul $t1, $t1, $s2
+	addi $t1, $t1, 4
+	add $t1, $t1, $s0
+	addi $a1, $s0, 4
+	move $a0, $t1
+	li $a2, 8
+	jal memcpy
+	
+	move $a0, $s0
+	li $a1, 0
+	jal heapify_down
+	move $v0, $s2
+	j endDequeue
+	queueEmpty_dequeue:
+		li $v0, -1
+	endDequeue:
+	lw $ra, 0($sp)				# restore registers
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)
+	addi $sp, $sp, 16
+	jr $ra
 
 # Part VIII
 build_heap:
-jr $ra
+	addi $sp, $sp, -16			# preserve registers
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	
+	move $s0, $a0
+	
+	lh $t0, ($s0)
+	beqz $t0, emptyArray
+	
+	li $s1, 0				# swap counter
+	addi $t0, $t0, -1
+	li $t1, 3
+	div $t0, $t1
+	mflo $s2				# index
+	
+	callHeapifyDownLoop:
+		move $a0, $s0
+		move $a1, $s2
+		jal heapify_down
+		add $s1, $s1, $v0
+		addi $s2, $s2, -1
+		bgez $s2, callHeapifyDownLoop
+	move $v0, $s1	
+	j endBuildHeap
+	emptyArray:
+		li $v0, 0
+	endBuildHeap:	
+	lw $ra, 0($sp)				# restore registers
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)
+	addi $sp, $sp, 16
+	jr $ra
 
 # Part IX
 increment_time:
-jr $ra
+	addi $sp, $sp, -28			# preserve registers
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	sw $s4, 20($sp)
+	sw $s5, 24($sp)
+
+	move $s0, $a0
+	move $s1, $a1
+	move $s2, $a2
+	
+	blez $s1, invalidInput_incTime
+	blez $s2, invalidInput_incTime
+	
+	li $t0, 0				# customer counter
+	lh $t1, ($s0)				# num of customers
+	beqz $t1, invalidInput_incTime
+	addi $t2, $s0, 4			# start of cust array
+	li $t4, 0				# total wait time
+	
+	iterateCustomer:
+		lh $t3, 6($t2)			# wait time
+		add $t3, $t3, $s1	
+		sh $t3, 6($t2)
+		add $t4, $t4, $t3
+		
+		lh $t3, 4($t2)
+		bge $t3, $s2, tooFamous
+		add $t3, $t3, $s1
+		sh $t3, 4($t2)
+		
+		tooFamous:
+		addi $t0, $t0, 1
+		addi $t2, $t2, 8
+		blt $t0, $t1, iterateCustomer
+		
+	div $t4, $t0
+	mflo $s3
+	move $a0, $s0
+	jal build_heap
+	move $v0, $s3
+	j endIncrementTime
+	invalidInput_incTime:
+		li $v0, -1
+	endIncrementTime:
+	lw $ra, 0($sp)				# restore registers
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)
+	lw $s3, 16($sp)
+	lw $s4, 20($sp)
+	lw $s5, 24($sp)
+	addi $sp, $sp, 28
+	jr $ra
 
 # Part X
 admit_customers:
