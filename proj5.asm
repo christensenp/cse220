@@ -153,11 +153,51 @@ set_value:
 
 # Part 6
 index_of:
-jr $ra
+	lw $t2, ($a0)
+	beqz $t2, emptyList
+	
+	li $t0, 0					# node counter
+	lw $t1, 4($a0)					# starting node
+	findNum:
+		lw $t3, ($t1)
+		beq $t3, $a1, numFound
+		lw $t1, 4($t1)
+		addi $t0, $t0, 1
+		blt $t0, $t2, findNum
+	emptyList:
+		li $v0 -1
+		j endIndexOf
+	numFound:
+	move $v0, $t0
+	endIndexOf:
+	jr $ra
 
 # Part 7
 remove:
-jr $ra
+	lw $t2, ($a0)
+	beqz $t2, invalidInput
+	
+	li $t0, 0					# node counter
+	lw $t1, 4($a0)					# starting node
+	move $t4, $a0
+	findNum_remove:
+		lw $t3, ($t1)
+		beq $t3, $a1, numFound_remove
+		move $t4, $t1
+		lw $t1, 4($t1)
+		addi $t0, $t0, 1
+		blt $t0, $t2, findNum_remove
+	invalidInput:
+		li $v0, -1
+		li $v1, -1
+		j endRemove
+	numFound_remove:
+		lw $t2, 4($t1)
+		sw $t2, 4($t4)
+		li $v0, 0
+		move $v1, $t0	
+	endRemove:
+	jr $ra
 
 # Part 8
 create_deck:
