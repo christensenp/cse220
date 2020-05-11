@@ -7,6 +7,30 @@
 #################### DO NOT CREATE A .data SECTION ####################
 
 .text
+######## a0 is desired suit | a1 is the pointer to player deck ###############3
+findFirstCardOfSuit:
+	lw $t0, ($a1)
+	li $t1, 0				# counter
+	move $t2, $a1
+	searchDeck:
+		lw $t2, 4($t2)
+		lw $t4, ($t2)
+		sll $t4, $t4, 8
+		srl $t4, $t4, 24
+		beq $t4, $a0, foundSuit
+		addi $t1, $t1, 1
+		blt $t1, $t0, searchDeck
+		
+	li $v0, -1
+	lw $t0, 4($a1)
+	lw $v1, ($t0)
+	j endFindFirstCardOfSuit
+	
+	foundSuit:
+	move $v0, $t1
+	lw $v1, ($t2)
+	endFindFirstCardOfSuit:
+	jr $ra
 
 # Part 1
 init_list:
@@ -196,6 +220,9 @@ remove:
 		sw $t2, 4($t4)
 		li $v0, 0
 		move $v1, $t0	
+		lw $t0, ($a0)
+		addi $t0, $t0, -1
+		sw $t0, ($a0)
 	endRemove:
 	jr $ra
 
@@ -410,7 +437,6 @@ deal_cards:
 	lw $s6, 28($sp)
 	addi $sp, $sp, 32
 	jr $ra
-	jr $ra
 
 # Part 11
 card_points:
@@ -427,7 +453,7 @@ card_points:
 	li $t1, '2'
 	blt $t0, $t1, invalidCard
 	li $t1, '9'
-	blt $t0, $t1, checkSuit
+	ble $t0, $t1, checkSuit
 	li $t1, 'T'
 	beq $t0, $t1, checkSuit
 	li $t1, 'J'
@@ -469,7 +495,349 @@ card_points:
 
 # Part 12
 simulate_game:
-jr $ra
+	addi $sp, $sp, -36			# preserve registers
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	sw $s4, 20($sp)
+	sw $s5, 24($sp)
+	sw $s6, 28($sp)
+	sw $s7, 32($sp)
+
+	move $s0, $a0				# deck
+	move $s1, $a1				# player array
+	move $s2, $a2				# rounds
+	
+	li $t0, 0				# player counter
+	move $t1, $s1
+	initPlayers:
+		lw $a0, ($t1)
+		jal init_list
+		addi $t0, $t0, 1
+		addi $t1, $t1, 4
+		li $t2, 4
+		blt $t0, $t2, initPlayers
+	
+	move $a0, $s0
+	move $a1, $s1
+	li $a2, 4
+	li $a3, 13
+	jal deal_cards
+	
+	li $s3, 0				# player counter
+	move $s4, $s1
+	findTwoClubs:
+		lw $a0, ($s4)
+		li $a1, 0x433255			
+		jal index_of
+		bgez $v0, foundTwoClubs
+		addi $s3, $s3, 1
+		addi $s4, $s4, 4
+		li $t0, 4
+		blt $s3, $t0, findTwoClubs
+	
+	foundTwoClubs:	
+	lw $a0, ($s4)
+	li $a1, 0x433255
+	jal remove
+	
+	li $s4, 0
+	li $s5, 0
+	
+	addi $sp, $sp, -12
+	li $t0, -1
+	sw $t0, 0($sp)
+	sw $0, 4($sp)
+	sw $0, 8($sp)
+	
+	li $t0, 3
+	bge $s3, $t0, resetPlayerCounter
+	addi $s3, $s3, 1
+	j dontReset
+	resetPlayerCounter:
+	li $s3, 0
+	dontReset:
+	
+	li $s6, 0
+	playClubsLoop:
+		li $t0, 0
+		move $t1, $s1
+		goToPlayerLoop:
+			lw $s4, ($t1)
+			addi $t0, $t0, 1
+			addi $t1, $t1, 4
+			ble $t0, $s3, goToPlayerLoop
+		
+		li $a0, 'C'
+		move $a1, $s4
+		jal findFirstCardOfSuit
+		move $s5, $v1
+		sll $t0, $v1, 16
+		srl $t0, $t0, 24
+		lw $t1, 4($sp)
+		
+		li $t9, '9'
+		ble $t1, $t9, checkNumValue
+		ble $t0, $t9, notHighestRank
+		
+		li $t9, 'T'
+		beq $t0, $t9, notHighestRank
+		li $t9, 'J'
+		beq $t0, $t9, checkIfQueenKingAce
+		li $t9, 'Q'
+		beq $t0, $t9, checkIfKingAce
+		li $t9, 'K'
+		beq $t0, $t9, checkIfAce
+		j highestRank
+		
+		checkIfAce:
+			li $t9, 'A'
+			beq $t1, $t9, notHighestRank
+			j highestRank
+		checkIfKingAce:
+			li $t9, 'A'
+			beq $t1, $t9, notHighestRank
+			li $t9, 'K'
+			beq $t1, $t9, notHighestRank
+			j highestRank
+		checkIfQueenKingAce:
+			li $t9, 'A'
+			beq $t1, $t9, notHighestRank
+			li $t9, 'K'
+			beq $t1, $t9, notHighestRank
+			li $t9, 'Q'
+			beq $t1, $t9, notHighestRank	
+			j highestRank
+		checkNumValue:
+			blt $t0, $t9, notHighestRank	
+		highestRank:
+			sw $s3, 0($sp)
+			sw $t0, 4($sp)
+		notHighestRank:
+		move $a0, $v1
+		jal card_points
+		lw $t0, 8($sp)
+		add $t0, $t0, $v0
+		sw $t0, 8($sp)
+		
+		move $a0, $s4
+		move $a1, $s5
+		jal remove
+		
+		addi $s6, $s6, 1
+		li $t0, 3
+		bge $s3, $t0, resetPlayer
+		addi $s3, $s3, 1
+		j dontReset_2
+		resetPlayer:
+		li $s3, 0
+		dontReset_2:
+		blt $s6, $t0, playClubsLoop
+		
+	li $s4, 0
+	li $s5, 0
+	li $s6, 0
+	li $s7, 0
+	
+	lw $t0, ($sp)
+	lw $t1, 8($sp)
+	li $t9, 'H'
+	lw $t8, 16($sp)	
+	bne $t9, $t8, dontIncrementScore		
+	addi $t1, $t1, 1
+	dontIncrementScore:
+	bnez $t0, playerTwo
+	add $s4, $s4, $t1
+	playerTwo:
+	li $t2, 1
+	bne $t0, $t2, playerThree
+	add $s5, $s5, $t1
+	playerThree:
+	li $t2, 2
+	bne $t0, $t2, playerFour
+	add $s6, $s6, $t1
+	playerFour:
+	add $s7, $s7, $t1
+	
+	lw $s3, 0($sp)	
+	addi $sp, $sp, 12
+	
+	# s3 is player who goes first next round
+	addi $sp, $sp -4
+	li $t0, 2
+	sw $t0, ($sp)							# round counter
+	playRoundsLoop:
+		addi $sp, $sp, -28
+		li $t0, -1
+		sw $t0, 0($sp)
+		sw $0, 4($sp)
+		sw $0, 8($sp)
+		sw $0, 12($sp)				# address of player
+		sw $0, 16($sp)				# suit
+		sw $0, 20($sp)				# players done with turn counter
+		sw $0, 24($sp)				# card to remove
+		
+		li $t0, 0
+		move $t1, $s1
+		goToPlayerLoop_2:
+			lw $t2, ($t1)
+			sw $t2, 12($sp)
+			addi $t0, $t0, 1
+			addi $t1, $t1, 4
+			ble $t0, $s3, goToPlayerLoop_2
+		
+		lw $t0, 12($sp)
+		move $a0, $t0
+		jal draw_card
+		sw $v1, 16($sp)
+		
+		li $t0, 3
+		bge $s3, $t0, resetPlayerCounter_2
+		addi $s3, $s3, 1
+		j dontReset_3
+		resetPlayerCounter_2:
+		li $s3, 0
+		dontReset_3:
+		playSuitLoop:
+			li $t0, 0
+			move $t1, $s1
+			goToPlayerLoop_3:
+				lw $t2, ($t1)
+				sw $t2, 12($sp)
+				addi $t0, $t0, 1
+				addi $t1, $t1, 4
+				ble $t0, $s3, goToPlayerLoop_3
+			lw $t9, 16($sp)
+			sll $t0, $t9, 8
+			srl $t0, $t0, 24
+			move $a0, $t0
+			lw $t0, 12($sp)
+			move $a1, $t0
+			jal findFirstCardOfSuit
+			
+			sw $v1, 24($sp)
+			sll $t0, $v1, 16
+			srl $t0, $t0, 24
+			lw $t1, 4($sp)
+			li $t9, '9'
+			ble $t1, $t9, checkNumValue_2
+			ble $t0, $t9, notHighestRank_2
+		
+			li $t9, 'T'
+			beq $t0, $t9, notHighestRank_2
+			li $t9, 'J'
+			beq $t0, $t9, checkIfQueenKingAce_2
+			li $t9, 'Q'
+			beq $t0, $t9, checkIfKingAce_2
+			li $t9, 'K'
+			beq $t0, $t9, checkIfAce_2
+			j highestRank_2
+		
+			checkIfAce_2:
+				li $t9, 'A'
+				beq $t1, $t9, notHighestRank_2
+				j highestRank_2
+			checkIfKingAce_2:
+				li $t9, 'A'
+				beq $t1, $t9, notHighestRank_2
+				li $t9, 'K'
+				beq $t1, $t9, notHighestRank_2
+				j highestRank_2
+			checkIfQueenKingAce_2:
+				li $t9, 'A'
+				beq $t1, $t9, notHighestRank_2
+				li $t9, 'K'
+				beq $t1, $t9, notHighestRank_2
+				li $t9, 'Q'
+				beq $t1, $t9, notHighestRank_2	
+				j highestRank_2
+			checkNumValue_2:
+				blt $t0, $t9, notHighestRank_2	
+			highestRank_2:
+				sw $s3, 0($sp)
+				sw $t0, 4($sp)
+			notHighestRank_2:
+			move $a0, $v1
+			jal card_points
+			lw $t0, 8($sp)
+			add $t0, $t0, $v0
+			sw $t0, 8($sp)
+		
+			lw $a0, 12($sp)
+			lw $a1, 24($sp)
+			jal remove
+			
+			lw $t0, 20($sp)
+			addi $t0, $t0, 1
+			sw $t0, 20($sp)
+			li $t0, 3
+			bge $s3, $t0, resetPlayer_2
+			addi $s3, $s3, 1
+			j dontReset_4
+			resetPlayer_2:
+			li $s3, 0
+			dontReset_4:
+			lw $t1, 20($sp)
+			blt $t1, $t0, playSuitLoop
+		
+		lw $t0, ($sp)
+		lw $t1, 8($sp)
+		li $t9, 'H'
+		lw $t8, 16($sp)
+		sll $t8, $t8, 8
+		srl $t8, $t8, 24	
+		bne $t9, $t8, dontIncrementScore_2		
+		addi $t1, $t1, 1
+		dontIncrementScore_2:
+		bnez $t0, playerTwo_2
+		add $s4, $s4, $t1
+		j endScoring
+		playerTwo_2:
+		li $t2, 1
+		bne $t0, $t2, playerThree_2
+		add $s5, $s5, $t1
+		j endScoring
+		playerThree_2:
+		li $t2, 2
+		bne $t0, $t2, playerFour_2
+		add $s6, $s6, $t1
+		j endScoring
+		playerFour_2:
+		add $s7, $s7, $t1
+		
+		endScoring:
+		lw $s3, ($sp)	
+		addi $sp, $sp, 28
+		
+		lw $t0, ($sp)
+		addi $t0, $t0, 1
+		sw $t0, ($sp)
+		ble $t0, $s2, playRoundsLoop
+		
+	addi $sp, $sp, 4
+	
+	move $s0, $s7
+	sll $s0, $s0, 8
+	add $s0, $s0, $s6
+	sll $s0, $s0, 8
+	add $s0, $s0, $s5
+	sll $s0, $s0, 8
+	add $s0, $s0, $s4
+	move $v0, $s0
+	
+	lw $ra, 0($sp)				# restore registers
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)
+	lw $s3, 16($sp)
+	lw $s4, 20($sp)
+	lw $s5, 24($sp)
+	lw $s6, 28($sp)
+	lw $s7, 32($sp)
+	addi $sp, $sp, 36
+	jr $ra
 
 #################### DO NOT CREATE A .data SECTION ####################
 #################### DO NOT CREATE A .data SECTION ####################
